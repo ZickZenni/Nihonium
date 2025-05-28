@@ -2,16 +2,20 @@ import { app as electronApp, BrowserWindow, session, net } from "electron";
 import squirrelStartup from "electron-squirrel-startup";
 import url from "url";
 import path from "path";
-import GatewayClient from "./gateway/client";
+import DiscordClient from "./discord";
+import GatewayReadyDispatchData from "./gateway/dispatch/ready";
 
 class Application {
-  public readonly gateway: GatewayClient;
-
   private mainWindow: BrowserWindow | null;
 
+  private token: string;
+
+  private discord: DiscordClient;
+
   constructor() {
-    this.gateway = new GatewayClient(10);
+    this.discord = new DiscordClient();
     this.mainWindow = null;
+    this.token = "";
 
     /*
      * Quit when all windows are closed, except on macOS. There, it's common
@@ -33,6 +37,8 @@ class Application {
         this.createMainWindow();
       }
     });
+
+    this.discord.gateway.on("ready", (data) => this.handleGatewayReady(data));
   }
 
   /**
@@ -50,12 +56,11 @@ class Application {
     }
 
     this.hookCorsBypass();
-    this.hookAssetsProtocol();
-    this.gateway.connect("");
+    this.registerAssetsProtocol();
 
+    await this.discord.connect(this.token);
     await this.createMainWindow();
   }
-
   /**
    * Hooks a listener to when a fetch/web request is being handled
    * and allow specific urls to be fetched without any CORS problems.
@@ -65,6 +70,7 @@ class Application {
       urls: ["https://tenor.com/view/*"],
     };
 
+    console.log("Hooking CORS bypass");
     session.defaultSession.webRequest.onBeforeSendHeaders(
       corsBypassFilter,
       (details, callback) => {
@@ -82,9 +88,10 @@ class Application {
   }
 
   /**
-   * Hooks a protocol for static assets to be loaded/fetched in the renderer.
+   * Registers a protocol for static assets to be loaded/fetched in the renderer.
    */
-  private hookAssetsProtocol() {
+  private registerAssetsProtocol() {
+    console.log("Registering assets:// protocol");
     session.defaultSession.protocol.handle(
       "assets",
       (request: GlobalRequest) => {
@@ -133,6 +140,10 @@ class Application {
         path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`)
       );
     }
+  }
+
+  private handleGatewayReady(data: GatewayReadyDispatchData) {
+    this.mainWindow.webContents.send("gateway:ready", JSON.stringify(data));
   }
 }
 

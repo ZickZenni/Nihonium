@@ -1,5 +1,7 @@
 import { RawData, WebSocket as WebSocketClient } from "ws";
-import ClientInfo from "../api/build";
+import GatewayReadyDispatchData from "./dispatch/ready";
+import IdentityProperties from "@main/api/types/identity";
+import { TypedEmitter } from "tiny-typed-emitter";
 
 /**
  * All opcodes of the gateway.
@@ -21,28 +23,43 @@ interface RawGatewayEvent {
   d: unknown;
 }
 
-export default class GatewayClient {
+type DispatchHandler = (event: RawGatewayEvent) => void;
+
+/**
+ * Available events for other classes to use.
+ */
+interface Events {
+  ready: (data: GatewayReadyDispatchData) => void;
+}
+
+export default class GatewayClient extends TypedEmitter<Events> {
   public readonly version: number;
 
   private socket: WebSocketClient | null;
 
   private heartbeat: ReturnType<typeof setInterval> | null;
 
+  private dispatchHandlers: Map<string, DispatchHandler>;
+
   constructor(version: number) {
+    super();
     this.version = version;
     this.socket = null;
     this.heartbeat = null;
+    this.dispatchHandlers = new Map();
+    this.dispatchHandlers.set("READY", (event) => this.handleDispatchReady(event));
   }
 
   /**
    * Connects to the gateway with the specified version and token.
    *
    * @param token A valid discord authentication token.
+   * @param identity A IdentityProperties instance to which you identify as on discord (gateway).
    *
    * @throws an Error when the gateway is already connected.
    * @throws an Error when the version is invalid.
    */
-  public connect(token: string) {
+  public connect(token: string, identity: IdentityProperties) {
     if (this.socket !== null) {
       throw new Error("GatewayClient.connect(): Socket is not null");
     }
@@ -55,11 +72,10 @@ export default class GatewayClient {
       `wss://gateway.discord.gg/?v=${this.version}&encoding=json`
     );
 
-    this.socket.on("open", () => this.handleOpen(token));
-    this.socket.on("message", (data: RawData) => this.handleMessage(data));
-    this.socket.on("close", () => this.handleClose());
+    this.socket.on("open", () => this.handleSocketOpen(token, identity));
+    this.socket.on("message", (data: RawData) => this.handleSocketRead(data));
+    this.socket.on("close", () => this.handleSocketClose());
   }
-
   /**
    * Send json data to the gateway.
    *
@@ -80,32 +96,13 @@ export default class GatewayClient {
   /**
    * Executed when the socket is opened.
    */
-  private async handleOpen(token: string) {
-    const build = await ClientInfo.getBuild();
-
+  private handleSocketOpen(token: string, identity: IdentityProperties) {
     this.send({
       op: GatewayOpcode.Identify,
       d: {
         token: token,
         capabilities: 4605,
-        properties: {
-          os: "Windows",
-          browser: "Chrome",
-          device: "",
-          system_locale: "en-US",
-          has_client_mods: false,
-          browser_user_agent:
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.87 Safari/537.36",
-          browser_version: "67.0.3396.87",
-          os_version: "10",
-          referrer: "",
-          referring_domain: "",
-          referrer_current: "",
-          referring_domain_current: "",
-          release_channel: "stable",
-          client_build_number: build ? `${build.buildNumber}` : "402402",
-          client_event_source: "",
-        },
+        properties: identity.toJson(),
         presence: {
           status: "online",
           since: 0,
@@ -120,7 +117,7 @@ export default class GatewayClient {
   /**
    * Handles the raw data coming from the socket.
    */
-  private handleMessage(data: RawData) {
+  private handleSocketRead(data: RawData) {
     if (!(data instanceof Buffer)) {
       return;
     }
@@ -146,17 +143,32 @@ export default class GatewayClient {
       }
       return;
     }
+
+    const handler = this.dispatchHandlers.get(event.t);
+    if (handler !== undefined) {
+      handler(event);
+    } else {
+      console.warn(`Unknown dispatch event received '${event.t}' that couldn't be handled`)
+    }
   }
 
   /**
    * Executed when the socket is getting closed.
    */
-  private handleClose() {
+  private handleSocketClose() {
     if (this.heartbeat !== null) {
       clearInterval(this.heartbeat);
       this.heartbeat = null;
     }
     this.socket = null;
     console.log("Closed gateway socket");
+  }
+
+  /**
+   * Handles the READY dispatch event.
+   */
+  private handleDispatchReady(event: RawGatewayEvent) {
+    const data = event.d as GatewayReadyDispatchData;
+    this.emit("ready", data);
   }
 }
