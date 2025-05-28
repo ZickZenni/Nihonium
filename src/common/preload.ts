@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, IpcRendererEvent } from "electron";
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 
 class IpcSubscription {
   public readonly channel: string;
@@ -21,8 +21,7 @@ let id = 0;
 const electron = {
   ipc: {
     on(channel: string, func: (...args: never[]) => void) {
-      const subscription = (_event: IpcRendererEvent, ...args: never[]) =>
-        func(...args);
+      const subscription = (_event: IpcRendererEvent, ...args: never[]) => func(...args);
       ipcRenderer.on(channel, subscription);
 
       const sub = new IpcSubscription(channel, subscription);
@@ -43,6 +42,6 @@ const electron = {
   },
 };
 
-contextBridge.exposeInMainWorld("electron", electron);
+contextBridge.exposeInMainWorld('electron', electron);
 
 export type ElectronHandler = typeof electron;

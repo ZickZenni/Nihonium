@@ -1,9 +1,9 @@
-import { app as electronApp, BrowserWindow, session, net } from "electron";
-import squirrelStartup from "electron-squirrel-startup";
-import url from "url";
-import path from "path";
-import DiscordClient from "./discord";
-import GatewayReadyDispatchData from "./gateway/dispatch/ready";
+import { app as electronApp, BrowserWindow, session, net } from 'electron';
+import squirrelStartup from 'electron-squirrel-startup';
+import url from 'url';
+import path from 'path';
+import DiscordClient from './discord';
+import GatewayReadyDispatchData from './gateway/dispatch/ready';
 
 class Application {
   private mainWindow: BrowserWindow | null;
@@ -15,20 +15,20 @@ class Application {
   constructor() {
     this.discord = new DiscordClient();
     this.mainWindow = null;
-    this.token = "";
+    this.token = '';
 
     /*
      * Quit when all windows are closed, except on macOS. There, it's common
      * for applications and their menu bar to stay active until the user quits
      * explicitly with Cmd + Q.
      */
-    electronApp.on("window-all-closed", () => {
-      if (process.platform !== "darwin") {
+    electronApp.on('window-all-closed', () => {
+      if (process.platform !== 'darwin') {
         electronApp.quit();
       }
     });
 
-    electronApp.on("activate", () => {
+    electronApp.on('activate', () => {
       /*
        * On OS X it's common to re-create a window in the app when the
        * dock icon is clicked and there are no other windows open.
@@ -38,7 +38,7 @@ class Application {
       }
     });
 
-    this.discord.gateway.on("ready", (data) => this.handleGatewayReady(data));
+    this.discord.gateway.on('ready', (data) => this.handleGatewayReady(data));
   }
 
   /**
@@ -67,44 +67,35 @@ class Application {
    */
   private hookCorsBypass() {
     const corsBypassFilter = {
-      urls: ["https://tenor.com/view/*"],
+      urls: ['https://tenor.com/view/*'],
     };
 
-    console.log("Hooking CORS bypass");
-    session.defaultSession.webRequest.onBeforeSendHeaders(
-      corsBypassFilter,
-      (details, callback) => {
-        details.requestHeaders["Origin"] = null;
-        callback({ requestHeaders: details.requestHeaders });
-      }
-    );
-    session.defaultSession.webRequest.onHeadersReceived(
-      corsBypassFilter,
-      (details, callback) => {
-        details.responseHeaders["Access-Control-Allow-Origin"] = ["*"];
-        callback({ responseHeaders: details.responseHeaders });
-      }
-    );
+    console.log('Hooking CORS bypass');
+    session.defaultSession.webRequest.onBeforeSendHeaders(corsBypassFilter, (details, callback) => {
+      details.requestHeaders['Origin'] = null;
+      callback({ requestHeaders: details.requestHeaders });
+    });
+    session.defaultSession.webRequest.onHeadersReceived(corsBypassFilter, (details, callback) => {
+      details.responseHeaders['Access-Control-Allow-Origin'] = ['*'];
+      callback({ responseHeaders: details.responseHeaders });
+    });
   }
 
   /**
    * Registers a protocol for static assets to be loaded/fetched in the renderer.
    */
   private registerAssetsProtocol() {
-    console.log("Registering assets:// protocol");
-    session.defaultSession.protocol.handle(
-      "assets",
-      (request: GlobalRequest) => {
-        const fileUrl = request.url.replace("assets://", "");
-        const assetsPath = path.join(electronApp.getAppPath(), "assets");
-        const filePath = path.join(assetsPath, fileUrl);
-        if (!filePath.startsWith(assetsPath)) {
-          return null;
-        }
-
-        return net.fetch(url.pathToFileURL(filePath).toString());
+    console.log('Registering assets:// protocol');
+    session.defaultSession.protocol.handle('assets', (request: GlobalRequest) => {
+      const fileUrl = request.url.replace('assets://', '');
+      const assetsPath = path.join(electronApp.getAppPath(), 'assets');
+      const filePath = path.join(assetsPath, fileUrl);
+      if (!filePath.startsWith(assetsPath)) {
+        return null;
       }
-    );
+
+      return net.fetch(url.pathToFileURL(filePath).toString());
+    });
   }
 
   /**
@@ -114,14 +105,14 @@ class Application {
    */
   private async createMainWindow() {
     if (this.mainWindow !== null) {
-      throw new Error("Application.mainWindow is not null.");
+      throw new Error('Application.mainWindow is not null.');
     }
 
     this.mainWindow = new BrowserWindow({
       width: 1200,
       height: 700,
       webPreferences: {
-        preload: path.join(__dirname, "preload.js"),
+        preload: path.join(__dirname, 'preload.js'),
       },
     });
 
@@ -136,14 +127,12 @@ class Application {
     if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
       await this.mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
     } else {
-      await this.mainWindow.loadFile(
-        path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`)
-      );
+      await this.mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
     }
   }
 
   private handleGatewayReady(data: GatewayReadyDispatchData) {
-    this.mainWindow.webContents.send("gateway:ready", JSON.stringify(data));
+    this.mainWindow.webContents.send('gateway:ready', JSON.stringify(data));
   }
 }
 

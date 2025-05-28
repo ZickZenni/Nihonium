@@ -1,7 +1,7 @@
-import { RawData, WebSocket as WebSocketClient } from "ws";
-import GatewayReadyDispatchData from "./dispatch/ready";
-import IdentityProperties from "@main/api/types/identity";
-import { TypedEmitter } from "tiny-typed-emitter";
+import { RawData, WebSocket as WebSocketClient } from 'ws';
+import GatewayReadyDispatchData from './dispatch/ready';
+import IdentityProperties from '@main/api/types/identity';
+import { TypedEmitter } from 'tiny-typed-emitter';
 
 /**
  * All opcodes of the gateway.
@@ -47,7 +47,7 @@ export default class GatewayClient extends TypedEmitter<Events> {
     this.socket = null;
     this.heartbeat = null;
     this.dispatchHandlers = new Map();
-    this.dispatchHandlers.set("READY", (event) => this.handleDispatchReady(event));
+    this.dispatchHandlers.set('READY', (event) => this.handleDispatchReady(event));
   }
 
   /**
@@ -61,20 +61,18 @@ export default class GatewayClient extends TypedEmitter<Events> {
    */
   public connect(token: string, identity: IdentityProperties) {
     if (this.socket !== null) {
-      throw new Error("GatewayClient.connect(): Socket is not null");
+      throw new Error('GatewayClient.connect(): Socket is not null');
     }
 
     if (this.version <= 0 || this.version > 10) {
-      throw new Error("GatewayClient.connect(): Invalid version");
+      throw new Error('GatewayClient.connect(): Invalid version');
     }
 
-    this.socket = new WebSocketClient(
-      `wss://gateway.discord.gg/?v=${this.version}&encoding=json`
-    );
+    this.socket = new WebSocketClient(`wss://gateway.discord.gg/?v=${this.version}&encoding=json`);
 
-    this.socket.on("open", () => this.handleSocketOpen(token, identity));
-    this.socket.on("message", (data: RawData) => this.handleSocketRead(data));
-    this.socket.on("close", () => this.handleSocketClose());
+    this.socket.on('open', () => this.handleSocketOpen(token, identity));
+    this.socket.on('message', (data: RawData) => this.handleSocketRead(data));
+    this.socket.on('close', () => this.handleSocketClose());
   }
   /**
    * Send json data to the gateway.
@@ -83,11 +81,11 @@ export default class GatewayClient extends TypedEmitter<Events> {
    */
   public send(data: unknown) {
     if (this.socket === null) {
-      throw new Error("GatewayClient.send(): A connection is non existent.");
+      throw new Error('GatewayClient.send(): A connection is non existent.');
     }
 
     if (this.socket.readyState !== WebSocket.OPEN) {
-      throw new Error("GatewayClient.send(): Socket is not ready.");
+      throw new Error('GatewayClient.send(): Socket is not ready.');
     }
 
     this.socket.send(JSON.stringify(data));
@@ -104,14 +102,14 @@ export default class GatewayClient extends TypedEmitter<Events> {
         capabilities: 4605,
         properties: identity.toJson(),
         presence: {
-          status: "online",
+          status: 'online',
           since: 0,
           is_afk: false,
         },
         does_support_compression: false,
       },
     });
-    console.log("Opened gateway socket");
+    console.log('Opened gateway socket');
   }
 
   /**
@@ -122,7 +120,7 @@ export default class GatewayClient extends TypedEmitter<Events> {
       return;
     }
 
-    const json = JSON.parse(data.toString("utf8"));
+    const json = JSON.parse(data.toString('utf8'));
     const event = json as RawGatewayEvent;
 
     if (event.t === null) {
@@ -148,7 +146,7 @@ export default class GatewayClient extends TypedEmitter<Events> {
     if (handler !== undefined) {
       handler(event);
     } else {
-      console.warn(`Unknown dispatch event received '${event.t}' that couldn't be handled`)
+      console.warn(`Unknown dispatch event received '${event.t}' that couldn't be handled`);
     }
   }
 
@@ -161,7 +159,7 @@ export default class GatewayClient extends TypedEmitter<Events> {
       this.heartbeat = null;
     }
     this.socket = null;
-    console.log("Closed gateway socket");
+    console.log('Closed gateway socket');
   }
 
   /**
@@ -169,6 +167,6 @@ export default class GatewayClient extends TypedEmitter<Events> {
    */
   private handleDispatchReady(event: RawGatewayEvent) {
     const data = event.d as GatewayReadyDispatchData;
-    this.emit("ready", data);
+    this.emit('ready', data);
   }
 }

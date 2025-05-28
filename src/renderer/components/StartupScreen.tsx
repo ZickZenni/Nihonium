@@ -1,9 +1,9 @@
-import { useEffect } from "react";
+import { useEffect } from 'react';
 
 export default function StartupScreen() {
   useEffect(() => {
-    window.electron.ipc.on("gateway:ready", () => {
-      console.log("ready");
+    window.electron.ipc.on('gateway:ready', () => {
+      console.log('ready');
     });
   }, []);
 

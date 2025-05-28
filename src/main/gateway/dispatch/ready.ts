@@ -1,4 +1,4 @@
-import DiscordApiUser from "@main/api/types/user";
+import DiscordApiUser from '@main/api/types/user';
 
 /**
  * Dispatch data for the event READY.
